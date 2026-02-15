@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Suraj Prasad | Senior Lead Engineer & AI Pioneer</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -17,6 +18,8 @@
         background-color: #020617;
         color: #f8fafc;
         overflow-x: hidden;
+        margin: 0;
+        padding: 0;
       }
       .glass-card {
         background: rgba(15, 23, 42, 0.6);
@@ -65,13 +68,281 @@
         -webkit-box-orient: vertical;
         overflow: hidden;
       }
+
+      /* Three.js particle background container */
+      #particle-container {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 0;
+        pointer-events: none;
+        opacity: 0.4;
+      }
+
+      .content-wrapper {
+        position: relative;
+        z-index: 1;
+      }
+
+      /* Animated gradient blobs - reduced opacity to work with particle bg */
+      .bg-blob {
+        position: fixed;
+        border-radius: 50%;
+        filter: blur(80px);
+        opacity: 0.15;
+        animation: blob-float 20s ease-in-out infinite;
+        pointer-events: none;
+      }
+
+      .blob-1 {
+        top: 10%;
+        left: 10%;
+        width: 500px;
+        height: 500px;
+        background: linear-gradient(135deg, #818cf8 0%, #a78bfa 100%);
+        animation-delay: 0s;
+      }
+
+      .blob-2 {
+        top: 60%;
+        right: 10%;
+        width: 400px;
+        height: 400px;
+        background: linear-gradient(135deg, #c084fc 0%, #e879f9 100%);
+        animation-delay: -7s;
+      }
+
+      .blob-3 {
+        bottom: 10%;
+        left: 30%;
+        width: 450px;
+        height: 450px;
+        background: linear-gradient(135deg, #2dd4bf 0%, #14b8a6 100%);
+        animation-delay: -14s;
+      }
+
+      @keyframes blob-float {
+        0%,
+        100% {
+          transform: translate(0, 0) scale(1);
+        }
+        33% {
+          transform: translate(30px, -50px) scale(1.1);
+        }
+        66% {
+          transform: translate(-20px, 20px) scale(0.9);
+        }
+      }
+
+      /* Grid overlay - reduced opacity */
+      .grid-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-image:
+          linear-gradient(rgba(99, 102, 241, 0.02) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(99, 102, 241, 0.02) 1px, transparent 1px);
+        background-size: 50px 50px;
+        pointer-events: none;
+        z-index: 0;
+      }
     </style>
   </head>
   <body>
-    <div id="root"></div>
+    <!-- Three.js particle background -->
+    <div id="particle-container"></div>
+
+    <!-- Animated gradient blobs -->
+    <div class="bg-blob blob-1"></div>
+    <div class="bg-blob blob-2"></div>
+    <div class="bg-blob blob-3"></div>
+
+    <!-- Grid overlay -->
+    <div class="grid-overlay"></div>
+
+    <div id="root" class="content-wrapper"></div>
+
+    <!-- Three.js Particle Wave Background Script -->
+    <script>
+      (function () {
+        var camera,
+          scene,
+          renderer,
+          container,
+          particle,
+          winHalfX,
+          winHalfY,
+          height,
+          width,
+          fieldOfView,
+          aspectRatio,
+          nearPlane,
+          farPlane,
+          cameraZ,
+          material,
+          i = 0,
+          count = 0,
+          Tau = Math.PI * 2,
+          mouseX = 0,
+          mouseY = 0,
+          amtX = 40,
+          amtY = 40,
+          sep = 80,
+          spriteOpts = {},
+          particles = [];
+
+        function onDocumentReady() {
+          container = document.getElementById("particle-container");
+
+          height = window.innerHeight;
+          winHalfY = height / 2;
+          width = window.innerWidth;
+          winHalfX = width / 2;
+          fieldOfView = 75;
+          aspectRatio = width / height;
+          nearPlane = 1;
+          farPlane = 10000;
+          cameraZ = 750;
+
+          initThreeJS();
+        }
+
+        function initThreeJS() {
+          camera = new THREE.PerspectiveCamera(
+            fieldOfView,
+            aspectRatio,
+            nearPlane,
+            farPlane,
+          );
+          camera.position.z = cameraZ;
+
+          scene = new THREE.Scene();
+
+          // Create particle material with custom color
+          var canvas = document.createElement("canvas");
+          canvas.width = 16;
+          canvas.height = 16;
+          var ctx = canvas.getContext("2d");
+          var gradient = ctx.createRadialGradient(8, 8, 0, 8, 8, 8);
+          gradient.addColorStop(0, "rgba(129, 140, 248, 1)");
+          gradient.addColorStop(0.5, "rgba(129, 140, 248, 0.5)");
+          gradient.addColorStop(1, "rgba(129, 140, 248, 0)");
+          ctx.fillStyle = gradient;
+          ctx.fillRect(0, 0, 16, 16);
+
+          var texture = new THREE.Texture(canvas);
+          texture.needsUpdate = true;
+
+          material = new THREE.SpriteMaterial({
+            map: texture,
+            color: 0x818cf8,
+            transparent: true,
+            opacity: 0.8,
+          });
+
+          // Create particles
+          for (var ix = 0, lx = amtX; ix < lx; ix++) {
+            for (var iy = 0, ly = amtY; iy < ly; iy++) {
+              particle = particles[i++] = new THREE.Sprite(material);
+              particle.position.x = ix * sep - (amtX * sep) / 2;
+              particle.position.z = iy * sep - (amtY * sep) / 2;
+              scene.add(particle);
+            }
+          }
+
+          renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+          renderer.setClearColor(0x000000, 0);
+          renderer.setPixelRatio(window.devicePixelRatio);
+          renderer.setSize(width, height);
+
+          container.appendChild(renderer.domElement);
+
+          // Bind events
+          document.addEventListener("mousemove", onDocumentMouseMove);
+          document.addEventListener("touchstart", onDocumentTouchStart);
+          document.addEventListener("touchmove", onDocumentTouchMove);
+          window.addEventListener("resize", onWindowResize);
+
+          animate();
+        }
+
+        function onDocumentMouseMove(e) {
+          mouseX = e.clientX - winHalfX;
+          mouseY = e.clientY - winHalfY;
+        }
+
+        function onDocumentTouchStart(e) {
+          if (e.touches.length === 1) {
+            e.preventDefault();
+            mouseX = e.touches[0].pageX - winHalfX;
+            mouseY = e.touches[0].pageY - winHalfY;
+          }
+        }
+
+        function onDocumentTouchMove(e) {
+          if (e.touches.length === 1) {
+            e.preventDefault();
+            mouseX = e.touches[0].pageX - winHalfX;
+            mouseY = e.touches[0].pageY - winHalfY;
+          }
+        }
+
+        function onWindowResize() {
+          height = window.innerHeight;
+          winHalfY = height / 2;
+          width = window.innerWidth;
+          winHalfX = width / 2;
+
+          camera.aspect = width / height;
+          camera.updateProjectionMatrix();
+          renderer.setSize(width, height);
+        }
+
+        function animate() {
+          requestAnimationFrame(animate);
+          update();
+        }
+
+        function update() {
+          camera.position.x += (mouseX - camera.position.x) * 0.05;
+          camera.position.y += (-mouseY - camera.position.y) * 0.05;
+          camera.lookAt(scene.position);
+
+          i = 0;
+          for (var ix = 0, lx = amtX; ix < lx; ix++) {
+            for (var iy = 0, ly = amtY; iy < ly; iy++) {
+              particle = particles[i++];
+              particle.position.y =
+                Math.sin((ix + count) * 0.3) * 50 +
+                Math.sin((iy + count) * 0.5) * 50;
+              particle.scale.x = particle.scale.y =
+                (Math.sin((ix + count) * 0.3) + 1) * 2 +
+                (Math.sin((iy + count) * 0.5) + 1) * 2;
+            }
+          }
+
+          renderer.render(scene, camera);
+          count += 0.1;
+        }
+
+        if (document.readyState === "loading") {
+          document.addEventListener("DOMContentLoaded", onDocumentReady);
+        } else {
+          onDocumentReady();
+        }
+      })();
+    </script>
 
     <script type="module">
-      import React, { useState, useEffect } from "https://esm.sh/react@18.2.0";
+      import React, {
+        useState,
+        useEffect,
+        useRef,
+      } from "https://esm.sh/react@18.2.0";
       import { createRoot } from "https://esm.sh/react-dom@18.2.0/client";
       import {
         Github,
@@ -910,12 +1181,12 @@
       const Contact = () => {
         return React.createElement(
           "section",
-          { id: "contact", className: "py-20 px-6" },
+          { id: "contact", className: "py-32 px-6" },
           React.createElement(
             "div",
             {
               className:
-                "glass-card rounded-[40px] p-4 md:p-6 relative overflow-hidden max-w-4xl mx-auto",
+                "glass-card rounded-[40px] p-10 md:p-16 relative overflow-hidden max-w-4xl mx-auto",
             },
             React.createElement("div", {
               className:
@@ -923,23 +1194,31 @@
             }),
             React.createElement(
               "div",
-              { className: "space-y-8" },
+              { className: "relative space-y-12" },
               React.createElement(
                 "div",
-                { className: "text-center space-y-4" },
+                { className: "text-center space-y-6" },
+                React.createElement(
+                  "h3",
+                  {
+                    className:
+                      "text-indigo-400 font-bold uppercase tracking-[0.4em] text-xs",
+                  },
+                  "Get In Touch",
+                ),
                 React.createElement(
                   "h2",
                   {
                     className:
-                      "text-3xl md:text-4xl font-black text-white tracking-tighter",
+                      "text-3xl md:text-5xl font-black text-white tracking-tighter",
                   },
-                  "Let's talk.",
+                  "Let's Talk.",
                 ),
                 React.createElement(
                   "p",
                   {
                     className:
-                      "text-slate-400 text-sm md:text-base font-medium max-w-xl mx-auto",
+                      "text-slate-400 text-base md:text-lg font-medium max-w-xl mx-auto",
                   },
                   "Open for high-impact roles and innovative collaborations.",
                 ),
@@ -947,8 +1226,7 @@
               React.createElement(
                 "div",
                 {
-                  className:
-                    "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4",
+                  className: "grid grid-cols-1 md:grid-cols-3 gap-6",
                 },
                 [
                   {
@@ -968,15 +1246,15 @@
                     {
                       key: i,
                       className:
-                        "flex items-center gap-3 group glass-card p-4 rounded-2xl border-white/5 overflow-hidden",
+                        "flex items-center gap-4 group glass-card p-6 rounded-3xl border-white/5 hover:border-indigo-500/20 transition-all",
                     },
                     React.createElement(
                       "div",
                       {
                         className:
-                          "p-3 rounded-xl glass-card text-indigo-400 group-hover:bg-indigo-500/20 transition-colors",
+                          "p-4 rounded-2xl glass-card text-indigo-400 group-hover:bg-indigo-500/20 transition-colors shrink-0",
                       },
-                      React.createElement(item.icon, { size: 18 }),
+                      React.createElement(item.icon, { size: 24 }),
                     ),
                     React.createElement(
                       "div",
@@ -985,7 +1263,7 @@
                         "p",
                         {
                           className:
-                            "text-[9px] font-black text-slate-500 uppercase tracking-[0.15em]",
+                            "text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-1",
                         },
                         item.label,
                       ),
@@ -993,7 +1271,7 @@
                         "p",
                         {
                           className:
-                            "text-xs font-bold text-white tracking-tight break-all",
+                            "text-sm font-bold text-white tracking-tight break-all",
                         },
                         item.value,
                       ),
@@ -1010,9 +1288,9 @@
                     href: "https://www.linkedin.com/in/suraj-prasad-6a662aa1/",
                     target: "_blank",
                     className:
-                      "w-full py-4 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-black text-sm transition-all transform active:scale-95 shadow-xl shadow-indigo-600/20 text-center block",
+                      "w-full py-5 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-black text-sm tracking-widest transition-all transform active:scale-95 shadow-xl shadow-indigo-600/20 text-center block uppercase",
                   },
-                  "SEND MESSAGE ON LINKEDIN",
+                  "Send Message on LinkedIn",
                 ),
               ),
             ),
@@ -1023,7 +1301,7 @@
       const App = () => {
         return React.createElement(
           "div",
-          { className: "min-h-screen bg-slate-950" },
+          { className: "min-h-screen" },
           React.createElement(Navbar),
           React.createElement(
             "main",
